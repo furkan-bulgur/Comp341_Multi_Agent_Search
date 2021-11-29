@@ -15,6 +15,7 @@
 from util import manhattanDistance
 from game import Directions
 import random, util
+import functools
 
 from game import Agent
 
@@ -27,7 +28,7 @@ class ReflexAgent(Agent):
     it in any way you see fit, so long as you don't touch our method
     headers.
     """
-
+    _counter = 1
 
     def getAction(self, gameState):
         """
@@ -72,9 +73,50 @@ class ReflexAgent(Agent):
         newFood = successorGameState.getFood()
         newGhostStates = successorGameState.getGhostStates()
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
+        newCapsules = successorGameState.getCapsules()
 
         "*** YOUR CODE HERE ***"
-        return successorGameState.getScore()
+        #food_dis, ghost_dis = maze_distance_to_closest_food_and_ghost(successorGameState)
+        food_dis, ghost_dis = manhattan_distance_to_food_and_ghost(successorGameState)
+
+        #print(successorGameState)
+        #print(food_dis, ghost_dis)
+
+        #if capsule is eaten chase ghosts
+        if functools.reduce(lambda a,b: a and b, [a != 0 for a in [ghostState.scaredTimer for ghostState in currentGameState.getGhostStates()]]):
+            manipulated_score = 1/ghost_dis
+        else:
+            if ghost_dis < 2:
+                return -9999
+            # elif ghost_dis > 4 and food_dis < 2:
+            #     manipulated_score = successorGameState.getScore()
+            elif ghost_dis > 4:
+                manipulated_score = 2*successorGameState.getScore() - food_dis + ghost_dis / 2
+            else:
+                manipulated_score = 2*successorGameState.getScore() - food_dis + ghost_dis
+
+        return manipulated_score
+
+def manhattan_distance_to_food_and_ghost(startState):
+    food_positions = startState.getFood().asList()
+    ghost_positions = [ghost.getPosition() for ghost in startState.getGhostStates()]
+    pacman_position = startState.getPacmanPosition()
+
+    try:
+        closest_food = min([manhattanDistance(pacman_position,food) for food in food_positions])
+    except ValueError:
+        closest_food = 0
+    try:
+        closest_ghost = min([manhattanDistance(pacman_position, ghost) for ghost in ghost_positions])
+    except ValueError:
+        closest_ghost = 0
+
+    return closest_food, closest_ghost
+
+
+
+
+
 
 def scoreEvaluationFunction(currentGameState):
     """
