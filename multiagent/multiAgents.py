@@ -275,7 +275,34 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.get_best_action(gameState)[0]
+
+    def exp_value(self, state, counter):
+        agent_index = counter % state.getNumAgents()
+        successor_states = [state.generateSuccessor(agent_index, action) for action in state.getLegalActions(agent_index)]
+        return sum([1/len(successor_states)*self.state_value(s, counter + 1) for s in successor_states])
+
+    def max_value(self, state, counter):
+        agent_index = counter % state.getNumAgents()
+        return max([self.state_value(s, counter + 1) for s in
+                    [state.generateSuccessor(agent_index, action) for action in state.getLegalActions(agent_index)]])
+
+
+    def state_value(self, state, counter):
+        number_of_states = state.getNumAgents()
+        is_terminal = state.isWin() or state.isLose() or self.depth * state.getNumAgents() <= counter
+
+        if is_terminal:
+            return self.evaluationFunction(state)
+        elif counter % number_of_states == 0:
+            return self.max_value(state, counter)
+        else:
+            return self.exp_value(state, counter)
+
+    def get_best_action(self, start_state):
+        return max([(action, self.state_value(state, 1)) for action, state in
+                    [(action, start_state.generateSuccessor(0, action)) for action in start_state.getLegalActions()]],
+                   key=lambda item: item[1])
 
 
 def betterEvaluationFunction(currentGameState):
@@ -286,7 +313,44 @@ def betterEvaluationFunction(currentGameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    foods = currentGameState.getFood().asList()
+    capsules = currentGameState.getCapsules()
+    capsule_amount = len(capsules)
+    pos = currentGameState.getPacmanPosition()
+    ghost_states = currentGameState.getGhostStates()
+    ghost_poses = currentGameState.getGhostPositions()
+    scared_times = [ghost_state.scaredTimer for ghost_state in ghost_states]
+    try:
+        closest_food_distance = min([manhattanDistance(pos, food_pos) for food_pos in foods])
+    except ValueError:
+        closest_food_distance = 0
+
+    try:
+        closest_capsule_distance = min([manhattanDistance(pos, capsule_pos) for capsule_pos in capsules])
+    except ValueError:
+        closest_capsule_distance = 0
+
+    try:
+        closest_ghost_distance = min([manhattanDistance(pos, ghost_pos) for ghost_pos in ghost_poses])
+    except ValueError:
+        closest_ghost_distance = 0
+
+
+    final_score = currentGameState.getScore()
+
+    if functools.reduce(lambda a, b: a and b, [a != 0 for a in scared_times]):
+        final_score = 2*currentGameState.getScore() -10*closest_ghost_distance
+    elif closest_ghost_distance > 4:
+        final_score = 2*currentGameState.getScore() - closest_food_distance
+    elif closest_capsule_distance < closest_ghost_distance < 4:
+        final_score = 2*currentGameState.getScore() -5*closest_capsule_distance
+    elif closest_ghost_distance < 2:
+        final_score = 2*currentGameState.getScore() + 10*closest_ghost_distance
+    else:
+        final_score = 2*currentGameState.getScore() - closest_food_distance - closest_capsule_distance + closest_ghost_distance
+
+
+    return final_score
 
 
 # Abbreviation
